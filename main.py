@@ -1,6 +1,14 @@
 from fastapi import FastAPI
 
-app = FastAPI(title="PredictaX", description="PredictaX")
+from app.core.config import get_settings
+
+settings = get_settings()
+
+app = FastAPI(
+    title=settings.APP_NAME,
+    description=settings.APP_DESCRIPTION,
+    version=settings.APP_VERSION,
+)
 
 
 @app.get("/")
