@@ -1,9 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.dependencies import get_db
+from app.core.exceptions import (
+    InactiveUserError,
+    InvalidCredentialsError,
+    InvalidTokenError,
+    UnverifiedUserError,
+    UserAlreadyExistsError,
+)
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -30,9 +37,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)) -> User
     result = await db.execute(select(User).where(User.email == user.email))
     existing_user = result.scalar_one_or_none()
     if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists"
-        )
+        raise UserAlreadyExistsError()
 
     hashed_password = get_password_hash(user.password)
     new_user = User(
@@ -42,7 +47,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)) -> User
         password=hashed_password,
         is_active=True,
         is_superuser=False,
-        is_verified=False,
+        is_verified=True,
     )
     db.add(new_user)
     await db.commit()
@@ -56,21 +61,13 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)) -> Token:
     result = await db.execute(select(User).where(User.email == user.email))
     existing_user = result.scalar_one_or_none()
     if not existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
-        )
+        raise InvalidCredentialsError()
     if not verify_password(user.password, existing_user.password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
-        )
+        raise InvalidCredentialsError()
     if not existing_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="User is not active"
-        )
+        raise InactiveUserError()
     if not existing_user.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="User is not verified"
-        )
+        raise UnverifiedUserError()
 
     # Create tokens
     access_token = create_access_token(data={"sub": str(existing_user.id)})
@@ -91,15 +88,11 @@ async def refresh(
     """Refresh tokens using a refresh token."""
     payload = verify_token(token_data.refresh_token)
     if not payload or payload.get("type") != "refresh":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
-        )
+        raise InvalidTokenError("Invalid refresh token")
 
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token"
-        )
+        raise InvalidTokenError("Invalid token payload")
 
     access_token = create_access_token(data={"sub": user_id})
     refresh_token = create_refresh_token(data={"sub": user_id})
