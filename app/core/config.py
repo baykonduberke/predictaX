@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "secret"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 7 * 24 * 60
 
     DATABASE_URL: str = "postgresql+asyncpg://postgres:sifre123@db:5432/predictax"
     DATABASE_POOL_SIZE: int = 10

@@ -11,7 +11,9 @@ engine = create_async_engine(
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
 )
 
-async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+async_session_maker = async_sessionmaker(
+    engine, class_=AsyncSession, expire_on_commit=False
+)
 
 
 class Base(DeclarativeBase):

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.core.config import get_settings
 from app.db.database import Base, engine
+from app.routers import auth
 
 settings = get_settings()
 
@@ -32,3 +33,6 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+app.include_router(auth.router)

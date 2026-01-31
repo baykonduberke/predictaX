@@ -111,7 +111,8 @@ class Token(BaseModel):
     access_token: str = Field(..., description="Access token")
     refresh_token: Optional[str] = Field(None, description="Refresh token")
     token_type: str = Field(default="bearer", description="Token type")
-    expires_in: int = Field(..., description="Expires in seconds")
+    access_token_expires_in: int = Field(..., description="Access token expires")
+    refresh_token_expires_in: int = Field(..., description="Refresh token expires")
 
 
 class TokenRefresh(BaseModel):
