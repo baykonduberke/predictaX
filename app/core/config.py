@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 7 * 24 * 60
 
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:sifre123@db:5432/predictax"
+    DATABASE_URL: str
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 2
 
