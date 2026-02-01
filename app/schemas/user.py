@@ -1,7 +1,34 @@
+import re
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Annotated, Any, List, Optional
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import AfterValidator, BaseModel, EmailStr, Field, model_validator
+
+
+def _validate_password(password: str) -> str:
+    """Validate password meets security requirements."""
+    if not re.search(r"[a-z]", password):
+        raise ValueError("Password must contain at least one lowercase letter")
+    if not re.search(r"[A-Z]", password):
+        raise ValueError("Password must contain at least one uppercase letter")
+    if not re.search(r"\d", password):
+        raise ValueError("Password must contain at least one number")
+    if not re.search(r"[@$!%*?&]", password):
+        raise ValueError(
+            "Password must contain at least one special character (@$!%*?&)"
+        )
+    return password
+
+
+StrongPassword = Annotated[
+    str,
+    Field(
+        min_length=8,
+        max_length=255,
+        description="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
+    ),
+    AfterValidator(_validate_password),
+]
 
 
 # Auth Schemas
@@ -12,13 +39,7 @@ class UserLogin(BaseModel):
 
 class UserCreate(BaseModel):
     email: EmailStr = Field(..., description="User email")
-    password: str = Field(
-        ...,
-        min_length=8,
-        max_length=255,
-        regex=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
-        description="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-    )
+    password: StrongPassword
     first_name: str = Field(
         ..., min_length=2, max_length=255, description="User first name"
     )
@@ -129,20 +150,8 @@ class TokenPayload(BaseModel):
 # Password Schemas
 class PasswordChange(BaseModel):
     current_password: str = Field(..., description="Current password")
-    new_password: str = Field(
-        ...,
-        min_length=8,
-        max_length=255,
-        regex=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
-        description="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-    )
-    confirm_password: str = Field(
-        ...,
-        min_length=8,
-        max_length=255,
-        regex=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
-        description="Password confirmation",
-    )
+    new_password: StrongPassword
+    confirm_password: StrongPassword
 
     @model_validator(mode="after")
     def validate_passwords_match(self):
@@ -159,20 +168,8 @@ class PasswordResetRequest(BaseModel):
 
 class PasswordReset(BaseModel):
     token: str = Field(..., description="Token")
-    new_password: str = Field(
-        ...,
-        min_length=8,
-        max_length=255,
-        regex=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
-        description="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-    )
-    confirm_password: str = Field(
-        ...,
-        min_length=8,
-        max_length=255,
-        regex=r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
-        description="Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character",
-    )
+    new_password: StrongPassword
+    confirm_password: StrongPassword
 
     @model_validator(mode="after")
     def validate_passwords_match(self):
