@@ -1,11 +1,20 @@
+import logging
+
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from app.core.exceptions import BaseAppException
 
+logger = logging.getLogger(__name__)
 
-async def app_exception_handler(request: Request, exc: BaseAppException) -> JSONResponse:
+
+async def app_exception_handler(
+    request: Request, exc: BaseAppException
+) -> JSONResponse:
     """Handle all application exceptions."""
+    logger.warning(
+        f"App error: {exc.message} | Path: {request.url.path} | Method: {request.method}"
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -18,6 +27,10 @@ async def app_exception_handler(request: Request, exc: BaseAppException) -> JSON
 
 async def generic_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Handle unexpected exceptions."""
+    logger.error(
+        f"Unexpected error: {str(exc)} | Path: {request.url.path} | Method: {request.method}",
+        exc_info=True,
+    )
     return JSONResponse(
         status_code=500,
         content={
@@ -26,4 +39,3 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
             "detail": None,
         },
     )
-
