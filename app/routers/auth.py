@@ -1,15 +1,14 @@
 from fastapi import APIRouter, Depends, status
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.dependencies import get_db
+from app.core.dependencies import get_user_repository
 from app.core.exceptions import (
     InactiveUserError,
     InvalidCredentialsError,
     InvalidTokenError,
     UnverifiedUserError,
     UserAlreadyExistsError,
+    UserNotFoundError,
 )
 from app.core.security import (
     create_access_token,
@@ -19,6 +18,7 @@ from app.core.security import (
     verify_token,
 )
 from app.models.user import User
+from app.repositories.user import UserRepository
 from app.schemas.user import (
     Token,
     TokenRefresh,
@@ -32,10 +32,12 @@ settings = get_settings()
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
-async def register(user: UserCreate, db: AsyncSession = Depends(get_db)) -> UserOut:
+async def register(
+    user: UserCreate,
+    user_repo: UserRepository = Depends(get_user_repository),
+) -> UserOut:
     """Register a new user."""
-    result = await db.execute(select(User).where(User.email == user.email))
-    existing_user = result.scalar_one_or_none()
+    existing_user = await user_repo.get_by_email(user.email)
     if existing_user:
         raise UserAlreadyExistsError()
 
@@ -49,17 +51,16 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)) -> User
         is_superuser=False,
         is_verified=True,
     )
-    db.add(new_user)
-    await db.commit()
-    await db.refresh(new_user)
-    return new_user
+    return await user_repo.create(new_user)
 
 
 @router.post("/login", response_model=Token, status_code=status.HTTP_200_OK)
-async def login(user: UserLogin, db: AsyncSession = Depends(get_db)) -> Token:
+async def login(
+    user: UserLogin,
+    user_repo: UserRepository = Depends(get_user_repository),
+) -> Token:
     """Login a user."""
-    result = await db.execute(select(User).where(User.email == user.email))
-    existing_user = result.scalar_one_or_none()
+    existing_user = await user_repo.get_by_email(user.email)
     if not existing_user:
         raise InvalidCredentialsError()
     if not verify_password(user.password, existing_user.password):
@@ -83,7 +84,8 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)) -> Token:
 
 @router.post("/refresh", response_model=Token, status_code=status.HTTP_200_OK)
 async def refresh(
-    token_data: TokenRefresh, db: AsyncSession = Depends(get_db)
+    token_data: TokenRefresh,
+    user_repo: UserRepository = Depends(get_user_repository),
 ) -> Token:
     """Refresh tokens using a refresh token."""
     payload = verify_token(token_data.refresh_token)
@@ -93,6 +95,14 @@ async def refresh(
     user_id = payload.get("sub")
     if not user_id:
         raise InvalidTokenError("Invalid token payload")
+
+    user = await user_repo.get_by_id(int(user_id))
+    if not user:
+        raise UserNotFoundError("User no longer exists")
+    if not user.is_active:
+        raise InactiveUserError()
+    if not user.is_verified:
+        raise UnverifiedUserError()
 
     access_token = create_access_token(data={"sub": user_id})
     refresh_token = create_refresh_token(data={"sub": user_id})
