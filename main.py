@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import get_settings
+from app.core.cors import setup_cors
 from app.core.exception_handlers import app_exception_handler, generic_exception_handler
 from app.core.exceptions import BaseAppException
 from app.db.database import Base, engine
@@ -25,6 +26,9 @@ app = FastAPI(
     version=settings.APP_VERSION,
     lifespan=lifespan,
 )
+
+# CORS
+setup_cors(app, settings)
 
 # Exception handlers
 app.add_exception_handler(BaseAppException, app_exception_handler)

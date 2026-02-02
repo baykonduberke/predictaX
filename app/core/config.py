@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     APP_DESCRIPTION: str = "PredictaX"
     APP_DEBUG: bool = False
     APP_ENVIRONMENT: str = "development"
+    CORS_ORIGINS: list[str] = []
+    CORS_ALLOW_CREDENTIALS: bool = True
+    CORS_ALLOW_METHODS: list[str] = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+    CORS_ALLOW_HEADERS: list[str] = ["*"]
+    CORS_EXPOSE_HEADERS: list[str] = ["*"]
+    CORS_MAX_AGE: int = 3600
 
     SECRET_KEY: str
     ALGORITHM: str = "HS256"
